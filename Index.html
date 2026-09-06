@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIDCUT — Editor Video Sederhana</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        :root {
+            --primary: #6366f1;
+            --secondary: #ec4899;
+            --bg-dark: #0f172a;
+            --bg-panel: #1e293b;
+            --bg-card: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #f59e0b;
+            --success: #10b981;
+        }
+        body { background: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* === HEADER === */
+        header { background: linear-gradient(90deg, var(--primary), var(--secondary)); padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .logo { font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; }
+        .logo span { background: white; color: var(--primary); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 1rem; }
+        .header-actions { display: flex; gap: 0.8rem; align-items: center; }
+        .btn { padding: 0.6rem 1.2rem; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+        .btn-primary { background: white; color: var(--primary); }
+        .btn-primary:hover { background: #f1f5f9; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-icon { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 0.5rem 0.8rem; }
+        .btn-icon:hover { background: rgba(255,255,255,0.15); }
+
+        /* === MAIN LAYOUT === */
+        .main { display: flex; flex: 1; overflow: hidden; }
+        
+        /* === SIDEBAR — MEDIA & ALAT === */
+        .sidebar { width: 260px; background: var(--bg-panel); padding: 1rem; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05); }
+        .sidebar-section { margin-bottom: 1.5rem; }
+        .sidebar-title { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .upload-area { border: 2px dashed rgba(99,102,241,0.5); border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 0.8rem; }
+        .upload-area:hover, .upload-area.highlight { border-color: var(--primary); background: rgba(99,102,241,0.1); }
+        .upload-area p { font-size: 0.9rem; color: var(--muted); margin-top: 0.3rem; }
+        input[type="file"] { display: none; }
+        .file-list { margin-top: 0.8rem; }
+        .file-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem; background: var(--bg-card); border-radius: 6px; margin-bottom: 0.4rem; font-size: 0.85rem; }
+        .tabs-tools { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.8rem; }
+        .tab-tool { padding: 0.5rem 0.7rem; background: var(--bg-card); border: none; border-radius: 6px; color: var(--text); font-size: 0.8rem; cursor: pointer; }
+        .tab-tool.active { background: var(--primary); color: white; }
+        .tool-panel { display: none; }
+        .tool-panel.show { display: block; }
+        select, input[type="range"], input[type="text"] { width: 100%; padding: 0.5rem; border-radius: 6px; border: none; background: var(--bg-card); color: var(--text); margin-top: 0.4rem; margin-bottom: 0.8rem; }
+        label { font-size: 0.85rem; color: var(--muted); }
+
+        /* === PREVIEW AREA === */
+        .preview-area { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; }
+        .preview-container { flex: 1; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%); }
+        video { max-width: 90%; max-height: 85%; border-radius: 8px; box-shadow: 0 0 40px rgba(0,0,0,0.5); background: #111; }
+        .placeholder { color: var(--muted); text-align: center; }
+        .placeholder svg { width: 80px; height: 80px; margin-bottom: 1rem; opacity: 0.4; }
+        
+        /* === PLAYBACK CONTROLS === */
+        .controls-bar { padding: 0.8rem 1.5rem; background: var(--bg-panel); display: flex; align-items: center; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); }
+        .play-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--primary); color: white; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .play-btn:hover { background: #4f46e5; }
+        .time-display { font-family: monospace; font-size: 0.95rem; min-width: 100px; }
+        .progress-container { flex: 1; height: 6px; background: var(--bg-card); border-radius: 3px; cursor: pointer; position: relative; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; border-radius: 3px; pointer-events: none; }
+        .volume-control { display: flex; align-items: center; gap: 0.5rem; }
+        .volume-control input { width: 100px; }
+
+        /* === TIMELINE === */
+        .timeline-area { height: 200px; background: var(--bg-panel); border-top: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; }
+        .timeline-header { padding: 0.5rem 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; color: var(--muted); }
+        .timeline-tracks { flex: 1; padding: 0.5rem 1rem; overflow-y: auto; }
+        .track { height: 50px; background: var(--bg-card); border-radius: 6px; margin-bottom: 0.5rem; display: flex; align-items: center; padding: 0 0.5rem; position: relative; }
+        .track-label { position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--muted); width: 50px; }
+        .track-content { margin-left: 55px; flex: 1; height: 40px; background: rgba(99,102,241,0.3); border-radius: 4px; position: relative; min-width: 0; }
+        .track-content.audio { background: rgba(236,72,153,0.3); }
+        .clip { position: absolute; left: 0; top: 0; bottom: 0; background: var(--primary); border-radius: 4px; display: flex; align-items: center; padding: 0 0.5rem; font-size: 0.75rem; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .clip.audio { background: var(--secondary); }
+        .add-clip-placeholder { border: 2px dashed rgba(255,255,255,0.2); height: 40px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+
+        /* === BOTTOM ACTIONS === */
+        .bottom-actions { padding: 0.7rem 1.5rem; background: var(--bg-panel); border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .edit-actions { display: flex; gap: 0.5rem; }
+        .btn-sm { padding: 0.5rem 0.9rem; font-size: 0.85rem; }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 900px) {
+            .main { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 200px; }
+            .controls-bar { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+    <div class="logo"><span>🎬</span> VIDCUT <small style="font-size:0.7rem; opacity:0.8;">Editor Video Sederhana</small></div>
+    <div class="header-actions">
+        <button class="btn btn-icon" id="newProject">📄 Baru</button>
+        <button class="btn btn-success" id="exportBtn">📤 Ekspor Video</button>
+    </div>
+</header>
+
+<div class="main">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">📂 Media</div>
+            <div class="upload-area" id="videoUpload">
+                <strong>+ Tambah Video</strong>
+                <p>Klik atau tarik file ke sini</p>
+                <input type="file" id="videoInput" accept="video/*">
+            </div>
+            <div class="upload-area" id="audioUpload">
+                <strong>+ Tambah Musik/Audio</strong>
+                <p>MP3, WAV, dll.</p>
+                <input type="file" id="audioInput" accept="audio/*">
+            </div>
+            <div class="file-list" id="mediaList"></div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">🛠️ Alat Editing</div>
+            <div class="tabs-tools">
+                <button class="tab-tool active" data-tool="adjust">✂️ Potong</button>
+                <button class="tab-tool" data-tool="text">✍️ Teks</button>
+                <button class="tab-tool" data-tool="filter">🎨 Filter</button>
+                <button class="tab-tool" data-tool="speed">⚡ Kecepatan</button>
+                <button class="tab-tool" data-tool="ratio">📐 Format</button>
+            </div>
+
+            <!-- Panel: Potong & Sesuaikan -->
+            <div class="tool-panel show" id="adjust">
+                <label>Waktu Mulai (detik)</label>
+                <input type="text" id="trimStart" placeholder="0.0">
+                <label>Waktu Akhir (detik)</label>
+                <input type="text" id="trimEnd" placeholder="0.0">
+                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:0.5rem;">✂️ Terapkan Potongan</button>
+            </div>
+
+            <!-- Panel: Teks -->
+            <div class="tool-panel" id="text">
+                <label>Teks</label>
+                <input type="text" id="textContent" placeholder="Tulis teks di sini...">
+                <label>Warna Teks</label>
+                <input type="color" value="#ffffff" style="width:100%; height:40px; border:none; border-radius:6px; cursor:pointer;">
+                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:0.5rem;">➕ Tambahkan Teks</button>
+            </div>
+
+            <!-- Panel: Filter -->
+            <div class="tool-panel" id="filter">
+                <label>Pilih Filter</label>
+                <select id="filterSelect">
+                    <option value="none">Tidak Ada</option>
+                    <option value="grayscale">Hitam Putih</option>
+                    <option value="sepia">Warna Hangat</option>
+                    <option value="brightness">Lebih Terang</option>
+                    <option value="contrast">Kontras Tinggi</option>
+                </select>
+                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:0.5rem;">🎨 Terapkan</button>
+            </div>
+
+            <!-- Panel: Kecepatan -->
+            <div class="tool-panel" id="speed">
+                <label>Kecepatan: <span id="speedVal">1x</span></label>
+                <input type="range" id="speedRange" min="0.5" max="2" step="0.1" value="1">
+                <button class="btn btn-primary btn-sm" style="width:100%; margin-top:0.5rem;">⚡ Terapkan</button>
+            </div>
+
+            <!-- Panel: Rasio Aspek -->
+            <div class="tool-panel" id="ratio">
+                <label>Format Video</label>
+                <select id="ratioSelect">
+                    <option value="9:16">9:16 — HP / TikTok</option>
+                    <option value="16:9" selected>16:9 — YouTube</option>
+                    <option value="1:1">1:1 — Instagram</option>
+                    <option value="4:5">4:5 — Reels</option>
+                </select>
+            </div>
+        </div>
+    </aside>
+
+    <!-- PREVIEW AREA -->
+    <section class="preview-area">
+        <div class="preview-container">
+            <div class="placeholder" id="placeholder">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <p>📂 Tambahkan video untuk mulai mengedit</p>
+            </div>
+            <video id="previewVideo" controls style="display:none;"></video>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="controls-bar">
+            <button class="play-btn" id="playBtn">▶</button>
+            <span class="time-display" id="timeDisplay">00:00 / 00:00</span>
+            <div class="progress-container" id="progressBar">
+                <div class="progress-bar" id="progressFill"></div>
+            </div>
+            <div class="volume-control">
+                <span>🔊</span>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+            </div>
+        </div>
+
+        <!-- TIMELINE -->
+        <div class="timeline-area">
+            <div class="timeline-header">
+                <span>⏱️ Timeline — Tarik klip untuk menyusun urutan</span>
+                <span id="totalDuration">Durasi: 0s</span>
+            </div>
+            <div class="timeline-tracks">
+                <div class="track">
+                    <span class="track-label">🎵 Audio</span>
+                    <div class="track-content audio" id="audioTrack">
+                        <div class="add-clip-placeholder" id="addAudioPlaceholder">+ Tambah Audio</div>
+                    </div>
+                </div>
+                <div class="track">
+                    <span class="track-label">🎬 Video</span>
+                    <div class="track-content" id="videoTrack">
+                        <div class="add-clip-placeholder" id="addVideoPlaceholder">+ Tambah Video</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM ACTIONS -->
+        <div class="bottom-actions">
+            <div class="edit-actions">
+                <button class="btn btn-icon btn-sm" id="undoBtn">↩️ Undo</button>
+                <button class="btn btn-icon btn-sm" id="redoBtn">↪️ Redo</button>
+                <button class="btn btn-icon btn-sm" id="splitBtn">✂️ Bagi</button>
+                <button class="btn btn-icon btn-sm" id="deleteBtn">🗑️ Hapus</button>
+            </div>
+            <div style="font-size:0.8rem; color:var(--muted);">
+                🎬 VIDCUT — Editor Video Sederhana | 100% Offline & Gratis
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+// === GLOBAL STATE ===
+let videoFile = null;
+let audioFile = null;
+let isPlaying = false;
+
+// === TAB SWITCHING — ALAT EDITING ===
+document.querySelectorAll('.tab-tool').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab-tool').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('show'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tool).classList.add('show');
+    });
+});
+
+// === KECEPATAN SLIDER ===
+const speedRange = document.getElementById('speedRange');
+const speedVal = document.getElementById('speedVal');
+speedRange.addEventListener('input', () => {
+    speedVal.textContent = speedRange.value + 'x';
+});
+
+// === UPLOAD VIDEO ===
+const videoUpload = document.getElementById('videoUpload');
+const videoInput = document.getElementById('videoInput');
+const previewVideo = document.getElementById('previewVideo');
+const placeholder = document.getElementById('placeholder');
+const mediaList = document.getElementById('mediaList');
+
+videoUpload.addEventListener('click', () => videoInput.click());
+videoUpload.addEventListener('dragover', e => { e.preventDefault(); videoUpload.classList.add('highlight'); });
+videoUpload.addEventListener('dragleave', () => videoUpload.classList.remove('highlight'));
+videoUpload.addEventListener('drop', e => { e.preventDefault(); videoUpload.classList.remove('highlight'); handleVideo(e.dataTransfer.files); });
+videoInput.addEventListener('change', e => handleVideo(e.target.files));
+
+function handleVideo(files) {
+    if (!files[0] || !files[0].type.startsWith('video/')) return alert('Pilih file video!');
+    videoFile = files[0];
+    const url = URL.createObjectURL(videoFile);
+    previewVideo.src = url;
+    previewVideo.style.display = 'block';
+    placeholder.style.display = 'none';
+    
+    mediaList.innerHTML = `<div class="file-item">🎬 ${videoFile.name}</div>`;
+    document.getElementById('addVideoPlaceholder').outerHTML = `<div class="clip" style="width:80%;">${videoFile.name}</div>`;
+    updateTimeDisplay();
+}
+
+// === UPLOAD AUDIO ===
+const audioUpload = document.getElementById('audioUpload');
+const audioInput = document.getElementById('audioInput');
+
+audioUpload.addEventListener('click', () => audioInput.click());
+audioUpload.addEventListener('dragover', e => { e.preventDefault(); audioUpload.classList.add('highlight'); });
+audioUpload.addEventListener('dragleave', () => audioUpload.classList.remove('highlight'));
+audioUpload.addEventListener('drop', e => { e.preventDefault(); audioUpload.classList.remove('highlight'); handleAudio(e.dataTransfer.files); });
+audioInput.addEventListener('change', e => handleAudio(e.target.files));
+
+function handleAudio(files) {
+    if (!files[0] || !files[0].type.startsWith('audio/')) return alert('Pilih file audio!');
+    audioFile = files[0];
+    mediaList.innerHTML += `<div class="file-item">🎵 ${audioFile.name}</div>`;
+    document.getElementById('addAudioPlaceholder').outerHTML = `<div class="clip audio" style="width:70%;">${audioFile.name}</div>`;
+}
+
+// === PLAY / PAUSE ===
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', () => {
+    if (!videoFile) return alert('Tambahkan video dulu!');
+    if (previewVideo.paused) { previewVideo.play(); playBtn.textContent = '⏸'; }
+    else { previewVideo.pause(); playBtn.textContent = '▶'; }
+});
+
+// === TIME DISPLAY UPDATE ===
+previewVideo.addEventListener('timeupdate', updateTimeDisplay);
+previewVideo.addEventListener('loadedmetadata', updateTimeDisplay);
+
+function formatTime(sec) {
+    if (!sec || isNaN(sec)) return '00:00';
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function updateTimeDisplay() {
+    const current = previewVideo.currentTime || 0;
+    const total = previewVideo.duration || 0;
+    document.getElementById('timeDisplay').textContent = `${formatTime(current)} / ${formatTime(total)}`;
+    document.getElementById('totalDuration').textContent = `Durasi: ${formatTime(total)}`;
+    document.getElementById('progressFill').style.width = `${(current/total)*100 || 0}%`;
+}
+
+// === VOLUME ===
+document.getElementById('volumeSlider').addEventListener('input', e => {
+    previewVideo.volume = e.target.value;
+});
+
+// === PROGRESS BAR CLICK ===
+document.getElementById('progressBar').addEventListener('click', e => {
+    if (!previewVideo.duration) return;
+    const rect = e.target.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    previewVideo.currentTime = percent * previewVideo.duration;
+});
+
+// === EXPORT (SIMULASI — untuk versi penuh pakai FFmpeg.wasm) ===
+document.getElementById('exportBtn').addEventListener('click', () => {
+    if (!videoFile) return alert('Tambahkan video dulu sebelum mengekspor!');
+    alert('✅ Ekspor dimulai!\n\nKarena versi dasar, silakan simpan video asli dengan pengaturan yang sudah dipilih.\n\nUntuk ekspor otomatis MP4 lengkap, kita bisa tambahkan FFmpeg.wasm di versi selanjutnya! 💛');
+});
+
+// === NEW PROJECT ===
+document.getElementById('newProject').addEventListener('click', () => {
+    if (confirm('Mulai proyek baru? Perubahan belum disimpan akan hilang.')) {
+        location.reload();
+    }
+});
+
+// === BAGI / POTONG ===
+document.getElementById('splitBtn').addEventListener('click', () => {
+    if (!videoFile) return alert('Tambahkan video dulu!');
+    alert('✂️ Fitur Bagi: Pindah pemutar ke waktu yang diinginkan, lalu tekan Bagi. — Bisa dikembangkan lebih lanjut!');
+});
+
+document.getElementById('deleteBtn').addEventListener('click', () => {
+    if (!videoFile) return;
+    if (confirm('Hapus klip terpilih?')) {
+        videoFile = null;
+        previewVideo.src = '';
+        previewVideo.style.display = 'none';
+        placeholder.style.display = 'block';
+        mediaList.innerHTML = '';
+        location.reload();
+    }
+});
+</script>
+
+</body>
+</html>
+
